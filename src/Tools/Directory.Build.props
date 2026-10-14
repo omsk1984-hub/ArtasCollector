@@ -1,0 +1,24 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <ArtasToolsRoot>$(MSBuildThisFileDirectory)</ArtasToolsRoot>
+
+    <!--
+      NuGet Audit отключён: окружение работает в офлайн-режиме и не имеет
+      доступа к индексу уязвимостей nuget.org (иначе NU1900 на каждый проект).
+    -->
+    <NuGetAudit>false</NuGetAudit>
+
+    <!--
+      NU1605 (package downgrade) подавляется: OpenTelemetry 1.17.0 транзитивно
+      просит Microsoft.Extensions.* 10.0.0, которых нет в офлайн-кэше.
+    -->
+    <NoWarn>$(NoWarn);NU1605</NoWarn>
+  </PropertyGroup>
+
+</Project>

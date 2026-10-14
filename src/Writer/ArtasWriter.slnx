@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="..\Core\ArtasCore\ArtasCore.csproj" />
+  <Project Path="ArtasWriter.Application/ArtasWriter.Application.csproj" />
+  <Project Path="ArtasWriter.Core/ArtasWriter.Core.csproj" />
+  <Project Path="ArtasWriter.FinamApi/ArtasWriter.FinamApi.csproj" />
+  <Project Path="ArtasWriter.Infrastructure/ArtasWriter.Infrastructure.csproj" />
+  <Project Path="ArtasWriter.Tests/ArtasWriter.Tests.csproj" />
+  <Project Path="ArtasWriter.Worker/ArtasWriter.Worker.csproj" />
+</Solution>

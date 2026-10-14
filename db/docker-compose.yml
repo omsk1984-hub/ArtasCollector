@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: artas_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-artas_db}
+      POSTGRES_USER: ${POSTGRES_USER:-artas_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-artas_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    # Порт 5432 пробрасывается ТОЛЬКО на localhost (127.0.0.1)
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - artas_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artas_user -d artas_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # Примечание: применение миграций больше НЕ выполняется docker-контейнером.
+  # Схема БД управляется EF Core миграциями (проект src/Core/ArtasCore).
+  # Применение — отдельным шагом через db/apply-migrations.ps1
+  # (внутри вызывает `dotnet ef database update`).
+  # Для уже существующей БД baseline: db/apply-migrations.ps1 -Baseline
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  artas_network:
+    driver: bridge

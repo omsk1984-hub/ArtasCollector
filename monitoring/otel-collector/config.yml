@@ -1,0 +1,83 @@
+# ============================================================
+# OpenTelemetry Collector — агрегирующий шлюз ArtasWriter.
+#
+# Принимает OTLP (gRPC :4317 / HTTP :4318) от ArtasWriter, обрабатывает
+# и распределяет:
+#   • metrics → Prometheus (remote-write, POST /api/v1/write)
+#   • logs    → Loki (OTLP-эндпоинт /otlp/v1/logs)
+#   • traces  → ОТКЛЮЧЕНО (file-exportёр удалён: писал неограниченно
+#               растущий traces.json ≈2.6 GB, ретенции не было).
+#               Приём трейсов будет включён, когда развернут Tempo:
+#               тогда добавить exporter otlp/tempo и вернуть пайплайн traces.
+# ============================================================
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Ограничение памяти: защита от OOM при всплесках.
+  memory_limiter:
+    check_interval: 2s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+
+  # Батчинг: снижает число сетевых запросов к бэкендам.
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+
+  # Добавляет имя сервиса к метрикам, чтобы в Prometheus было
+  # однозначно видно источник.
+  resource:
+    attributes:
+      - key: service.name
+        value: artas-writer
+        action: upsert
+
+exporters:
+  # OTel-метрики → Prometheus-формат → POST /api/v1/write.
+  # Prometheus запущен с --web.enable-remote-write-receiver.
+  prometheusremotewrite:
+    endpoint: http://prometheus:9090/api/v1/write
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Логи → Loki через стандартный OTLP/HTTP эндпоинт Loki.
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+  # NOTE: exporter `file` (трейсы → /var/log/otel/traces.json) удалён.
+  # Он писал неограниченно растущий JSON-файл без ретенции (~2.6 GB).
+  # Когда будет развёрнут Tempo — добавить сюда exporter otlp/tempo
+  # и вернуть пайплайн traces (см. ниже).
+
+service:
+  # Диагностические порты/расширения коллектора.
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: normal
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+
+  pipelines:
+    # Пайплайн traces намеренно отсутствует: приём трейсов отключён,
+    # пока не развёрнут Tempo. OTLP-трейсы от агентов будут отброшены.
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheusremotewrite]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/loki]

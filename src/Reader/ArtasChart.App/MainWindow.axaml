@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:ArtasChart.App.ViewModels"
+        xmlns:views="using:ArtasChart.App.Views"
+        mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="800"
+        x:Class="ArtasChart.App.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1400" Height="800"
+        Title="{Binding WindowTitle}">
+    <DockPanel Margin="0">
+
+        <!-- Панель управления -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="6,4,6,4">
+            <TextBlock Text="Символ:" VerticalAlignment="Center" />
+            <ComboBox Width="120"
+                      ItemsSource="{Binding AvailableSymbols}"
+                      SelectedItem="{Binding SymbolName, Mode=TwoWay}" />
+            <TextBlock Text="Лимит:" VerticalAlignment="Center" />
+            <TextBox Text="{Binding Limit}" Width="80" />
+            <Button Content="Загрузить"
+                    Command="{Binding LoadCommand}"
+                    IsEnabled="{Binding !IsBusy}" />
+            <Button Name="AutoScaleYButton" Content="Автомасштаб Y"
+                    ToolTip.Tip="Подогнать масштаб по Y под видимую область (без смены масштаба по X)" />
+            <ProgressBar IsIndeterminate="True" Width="120" IsVisible="{Binding IsBusy}" />
+            <TextBlock Text="{Binding VisibleCountText}" VerticalAlignment="Center" Foreground="DimGray" />
+        </StackPanel>
+
+        <!-- Сворачивающаяся панель фильтрации -->
+        <Expander DockPanel.Dock="Top" Header="Фильтрация" IsExpanded="True"
+                  Margin="6,0,6,4" HorizontalAlignment="Left">
+            <WrapPanel Orientation="Horizontal" Margin="4,4,0,4">
+                <TextBlock Text="M[0].vol (Ask):" VerticalAlignment="Center" Margin="0,0,6,6" />
+                <TextBox Width="70" Text="{Binding MinMarket0Volume}" Margin="0,0,14,6" />
+                <TextBlock Text="M[1].vol (Bid):" VerticalAlignment="Center" Margin="0,0,6,6" />
+                <TextBox Width="70" Text="{Binding MinMarket1Volume}" Margin="0,0,14,6" />
+                <TextBlock Text="Min Volume:" VerticalAlignment="Center" Margin="0,0,6,6" />
+                <TextBox Width="70" Text="{Binding MinVolume}" Margin="0,0,14,6" />
+                <TextBlock Text="Min Pick Volume:" VerticalAlignment="Center" Margin="0,0,6,6"
+                           ToolTip.Tip="Порог по Info.PickVolume для красных точек (невзятий)" />
+                <TextBox Width="70" Text="{Binding MinPickVolume}" Margin="0,0,14,6" />
+                <TextBlock Text="N экстремумов (0 = выкл):" VerticalAlignment="Center" Margin="0,0,6,6" />
+                <NumericUpDown Minimum="0" Maximum="50" Increment="1"
+                               Value="{Binding ExtremumNeighbors}" Width="100" Margin="0,0,14,6" />
+                <CheckBox Content="Показать" VerticalAlignment="Center" Margin="0,0,14,6"
+                          ToolTip.Tip="Показать/скрыть точки-невзятия: красные (Min Volume / Min Pick Volume) и зелёные (Min Markets Ask/Bid)"
+                          IsChecked="{Binding ShowRedPoints}" />
+                <Button Content="Применить фильтр" VerticalAlignment="Center" Margin="0,0,0,6"
+                        Command="{Binding ApplyFiltersCommand}" />
+            </WrapPanel>
+        </Expander>
+
+        <!-- Статус-строка -->
+        <Border DockPanel.Dock="Bottom" Margin="0" Padding="8"
+                BorderBrush="Gray" BorderThickness="1" CornerRadius="0">
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+        </Border>
+
+        <!-- График + info-панель -->
+        <Grid ColumnDefinitions="*,360" Margin="0">
+            <views:FractalChartControl Grid.Column="0" Name="Chart"
+                                      Series="{Binding Series}"
+                                      ShowRedPoints="{Binding ShowRedPoints}"
+                                      AutoScaleRequested="{Binding AutoScaleRequested}" />
+
+            <Border Grid.Column="1" Margin="0" Padding="8"
+                    BorderBrush="Gray" BorderThickness="1" CornerRadius="0">
+                <ScrollViewer>
+                    <SelectableTextBlock Name="InfoPanel" Text="{Binding InfoText}"
+                                         FontFamily="Consolas,monospace" FontSize="11"
+                                         TextWrapping="Wrap" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+    </DockPanel>
+</Window>

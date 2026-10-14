@@ -1,0 +1,16 @@
+# Сборка
+bin/
+obj/
+*.user
+
+# Конфигурация с секретами
+appsettings.Development.json
+appsettings.Local.json
+
+# Логи
+logs/
+*.log
+
+# Прочее
+.vs/
+.idea/

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      OpenTelemetry SDK (реальные .NET-пакеты, локальный NuGet-кэш).
+      Версия 1.17.0 содержит таргет lib/net10.0 — совместимо с Directory.Build.props.
+    -->
+    <PackageReference Include="OpenTelemetry" Version="1.17.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
+    <!--
+      Runtime-инструментирование .NET: экспорт метрик System.Runtime
+      (dotnet.gc.*, dotnet.jit.*, dotnet.thread_pool.*). Версия 1.17.0
+      содержит таргет lib/net10.0 — совместимо с Directory.Build.props.
+      Пакет OpenTelemetry.Instrumentation.Process в офлайн-кэше отсутствует,
+      поэтому AddProcessInstrumentation() не подключается.
+    -->
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
+    <!--
+      Явная ссылка понижает транзитивную зависимость OpenTelemetry 1.17.0
+      (просит 10.0.0) до доступной офлайн 8.0.0. Без неё restore падает
+      NU1102, т.к. в локальном кэше нет Configuration.EnvironmentVariables 10.0.0.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\ArtasCore\ArtasCore.csproj" />
+  </ItemGroup>
+
+</Project>

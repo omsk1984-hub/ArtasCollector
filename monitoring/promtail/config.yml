@@ -1,0 +1,125 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Сбор логов сервисов Artas2026 (Writer и Stat) из единого каталога.
+  # Каталог <root>/logs монтируется в контейнер как /var/log/artas (см.
+  # monitoring/docker-compose.monitoring.yml). Файлы:
+  #   writer.stdout.log / writer.stderr.log   (Writer)
+  #   stat.<symbol>.log                       (Stat, stdout+stderr)
+  #
+  # Индексные метки: job, app, svc, log_stream, level, symbol.
+  # logger/event_id — structured metadata (высокая кардинальность).
+  #
+  # ВАЖНО (проверено на Promtail 3.6):
+  #   • текст строки доступен стадиям regex БЕЗ source (source=log не существует);
+  #   • стадия 'template' не создаёт поле, если его не было во входной map.
+  #     Поэтому производные значения (log_stream) строим через 'replace',
+  #     а level берём напрямую из извлечённого lvl.
+  - job_name: artas_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          __path__: /var/log/artas/*.log
+    pipeline_stages:
+      # 0) Сшиваем многострочные .NET-исключения в ОДНУ запись.
+      #    Первая строка нового лога — уровень Microsoft.Extensions.Logging
+      #    ("info: ", "fail: " и т.п.). Все прочие строки (at ..., Exception...,
+      #    пустые/продолжения) приклеиваются к ней. ВАЖНО: стадия должна идти
+      #    ДО парсинга уровня — иначе regex уровня сработает на строках стека
+      #    и detected_level снова станет 'unknown'.
+      #    max_wait_time — чтобы последняя строка ушла в Loki, даже если
+      #    следующего лога ещё нет (иначе «залипнет» до следующей записи).
+      - multiline:
+          firstline: '^(trce|dbug|info|warn|fail|crit):\s'
+          max_wait_time: 3s
+
+      # 1) Имя файла без пути.
+      - regex:
+          source: filename
+          expression: '^.*/(?P<file>[^/]+)$'
+
+      # 2) Сервис (writer|stat) по префиксу имени файла.
+      - regex:
+          source: file
+          expression: '^(?P<svc>writer|stat)\.'
+
+      # 3) Признак потока Writer (stdout|stderr); у Stat суффикса нет.
+      - regex:
+          source: file
+          expression: '^writer\.(?P<stream_kind>stdout|stderr)\.log$'
+
+      # 4) Символ из stat.<symbol>.log (например stat.CNYRUBF.log -> CNYRUBF).
+      - regex:
+          source: file
+          expression: '^stat\.(?P<symbol>[^.]+)\.log$'
+
+      # 5) log_stream: у Stat всегда stdout, у Writer — по суффиксу.
+      #    Имя 'stream' зарезервировано Loki, поэтому используем log_stream.
+      - template:
+          source: log_stream
+          template: '{{ if eq .svc "stat" }}stdout{{ else if eq .stream_kind "stderr" }}stderr{{ else }}stdout{{ end }}'
+
+      # 6) Уровень и логгер из формата Microsoft.Extensions.Logging:
+      #    "info: ArtasWriter.Worker.WriterState[0]" / "warn: ...".
+      #    Без source — парсится сама строка лога.
+      - regex:
+          expression: '^(?P<lvl>trce|dbug|info|warn|fail|crit):\s+(?P<logger>[^\[]+)\[(?P<event_id>\d+)\]'
+
+      # 7) Индексные метки. Уровень — под именем 'lvl' (значения
+      #    info/warn/fail/...), фильтрация по уровню — в LogQL-запросах.
+      - labels:
+          svc:
+          log_stream:
+          symbol:
+          lvl:
+
+      # 8) job/app по сервису.
+      - template:
+          source: job
+          template: '{{ if eq .svc "writer" }}artas_writer{{ else }}artas_stat{{ end }}'
+      - template:
+          source: app
+          template: '{{ if eq .svc "writer" }}artas-writer{{ else }}artas-stat{{ end }}'
+      - labels:
+          job:
+          app:
+
+      # 9) Обогащение: symbol/symbol_id/batch_id из текста лога (пишутся
+      #    приложением явными полями, напр.
+      #    "Ошибка ... symbol=CNYRUBF symbol_id=6 event_type=quote" или
+      #    "... batch_id=5b6ecefb count=100 ..."). Извлекаются без source
+      #    (по строке) и кладутся в structured metadata (высокая кардинальность,
+      #    НЕ в индекс).
+      - regex:
+          expression: 'symbol=(?P<symbol>[A-ZА-Я0-9]+)'
+      - regex:
+          expression: 'symbol_id=(?P<symbol_id>\d+)'
+      - regex:
+          expression: 'batch_id=(?P<batch_id>[0-9a-fA-F]+)'
+
+      # 10) logger/event_id/symbol/symbol_id/batch_id — в structured metadata.
+      - structured_metadata:
+          logger:
+          event_id:
+          symbol:
+          symbol_id:
+          batch_id:
+
+      # 11) Drop-фильтр инфраструктурного шума ASP.NET (health-опрос, favicon,
+      #     служебные стадии middleware). Помечаем regex-ом по строке и
+      #     дропаем по флагу (drop-выражение по полю надёжнее, чем по __line__).
+      - regex:
+          expression: '(?P<is_aspnet_noise>(?i)(favicon\.ico|Request starting|Request finished|Executing endpoint|Executed endpoint|Writing value of type))'
+      - drop:
+          expression: 'is_aspnet_noise != ""'
+          drop_counter_reason: aspnet_noise
+

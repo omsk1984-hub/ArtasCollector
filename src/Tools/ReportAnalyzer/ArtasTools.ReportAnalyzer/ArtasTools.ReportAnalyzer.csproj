@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>ArtasTools.ReportAnalyzer</AssemblyName>
+    <RootNamespace>ArtasTools.ReportAnalyzer</RootNamespace>
+  </PropertyGroup>
+
+</Project>

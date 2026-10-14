@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.5" />
+    <!-- Явная ссылка понижает транзитивную зависимость OTel 1.17.0 с 10.0.0 до 8.0.0 (офлайн-кэш). -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArtasWriter.Core\ArtasWriter.Core.csproj" />
+    <ProjectReference Include="..\ArtasWriter.Application\ArtasWriter.Application.csproj" />
+    <ProjectReference Include="..\ArtasWriter.Infrastructure\ArtasWriter.Infrastructure.csproj" />
+    <ProjectReference Include="..\ArtasWriter.FinamApi\ArtasWriter.FinamApi.csproj" />
+    <ProjectReference Include="..\ArtasWriter.Worker\ArtasWriter.Worker.csproj" />
+  </ItemGroup>
+
+</Project>

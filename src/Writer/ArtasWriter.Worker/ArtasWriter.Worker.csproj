@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArtasWriter.Core\ArtasWriter.Core.csproj" />
+    <ProjectReference Include="..\ArtasWriter.Application\ArtasWriter.Application.csproj" />
+    <ProjectReference Include="..\ArtasWriter.Infrastructure\ArtasWriter.Infrastructure.csproj" />
+    <ProjectReference Include="..\ArtasWriter.FinamApi\ArtasWriter.FinamApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.example.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

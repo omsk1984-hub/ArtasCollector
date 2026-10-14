@@ -1,0 +1,18 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <ArtasCoreRoot>$(MSBuildThisFileDirectory)</ArtasCoreRoot>
+
+    <!--
+      NuGet Audit отключён: сборка/окружение работает в офлайн-режиме и не имеет
+      доступа к индексу уязвимостей nuget.org.
+    -->
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+
+</Project>

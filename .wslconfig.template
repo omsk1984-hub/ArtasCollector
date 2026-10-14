@@ -1,0 +1,18 @@
+# Шаблон конфигурации WSL (.wslconfig) для корректного завершения ВМ.
+#
+# Разместите этот файл как C:\Users\<ваш_пользователь>\.wslconfig
+# (имя файла: .wslconfig без расширения в имени, само расширение не добавляется).
+#
+# Назначение: гарантировать, что при перезагрузке/выключении Windows WSL-ВМ
+# успевает корректно завершить работу (docker/systemd success graceful stop),
+# чтобы PostgreSQL не оставался с "грязным" журналом (WAL) после unclean shutdown.
+
+[wsl2]
+# Максимум памяти для WSL (подберите под машину; слишком мало = риск OOM-kill PG)
+memory=8GB
+# Количество процессоров
+processors=4
+
+# ВАЖНО: graceful shutdown обеспечивается systemd-сервисом
+# wsl-docker-graceful-shutdown.service внутри WSL
+# (устанавливается: scripts/install_wsl_graceful_shutdown.ps1).

@@ -1,0 +1,23 @@
+[Unit]
+Description=Artas: graceful shutdown of Docker containers before WSL VM halts
+DefaultDependencies=no
+After=docker.service
+Requires=docker.service
+Before=shutdown.target
+# ВАЖНО: НЕ используем Conflicts=shutdown.target.
+# С DefaultDependencies=no сервис должен просто останавливаться (ExecStop)
+# в рамках нормальной процедуры shutdown ВМ. Флага Conflicts достаточно,
+# чтобы сервис участвовал в остановке, но Conflicts провоцировал ложные
+# ExecStop при переключении target. Поэтому ограничиваемся Before=shutdown.target.
+
+[Service]
+Type=oneshot
+# Даём PostgreSQL время выполнить checkpoint и корректно закрыть WAL
+TimeoutStartSec=0
+TimeoutStopSec=90
+ExecStart=/bin/true
+ExecStop=/usr/local/bin/artas-graceful-stop.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

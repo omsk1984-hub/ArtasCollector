@@ -1,0 +1,9 @@
+{
+    "marketplaceRules": [],
+    "rules": [
+        {
+            "path": "rules\\general.mdc",
+            "isUsed": true
+        }
+    ]
+}

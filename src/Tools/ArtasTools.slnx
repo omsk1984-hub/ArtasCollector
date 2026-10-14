@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="MemReport/ArtasTools.MemReport/ArtasTools.MemReport.csproj" />
+  <Project Path="MemReport/ArtasTools.MemReport.Tests/ArtasTools.MemReport.Tests.csproj" />
+  <Project Path="ReportAnalyzer/ArtasTools.ReportAnalyzer/ArtasTools.ReportAnalyzer.csproj" />
+  <Project Path="ReportAnalyzer/ArtasTools.ReportAnalyzer.Tests/ArtasTools.ReportAnalyzer.Tests.csproj" />
+</Solution>

@@ -1,0 +1,23 @@
+# ============================================================
+# Prometheus конфигурация ArtasWriter (remote-write приём).
+#
+# Метрики приходят PUSH-моделью: OTel Collector (экспортёр
+# prometheusremotewrite) → POST /api/v1/write на этот сервер.
+# Для приёма remote-write Prometheus запускается с флагом
+# --web.enable-remote-write-receiver (см. docker-compose.monitoring.yml).
+#
+# Собственный scrape отсутствует намеренно: Prometheus здесь — только
+# хранилище (TSDB) для OTel-метрик. Скрейп самого себя через
+# /api/v1/write некорректен (это write-эндпоинт, а не metrics).
+# ============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Самомониторинг Prometheus — включаем отдельным корректным job.
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - "localhost:9090"

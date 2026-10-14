@@ -1,0 +1,14 @@
+[Unit]
+Description=Artas: start Docker services (PostgreSQL) on WSL VM boot
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=180
+ExecStart=/usr/local/bin/artas-autostart.sh
+
+[Install]
+WantedBy=multi-user.target

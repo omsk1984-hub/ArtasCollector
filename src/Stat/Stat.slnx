@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="..\Core\ArtasCore\ArtasCore.csproj" />
+  <Project Path="Stat.Application/Stat.Application.csproj" />
+  <Project Path="Stat.Infrastructure/Stat.Infrastructure.csproj" />
+  <Project Path="Stat.Tests/Stat.Tests.csproj" />
+  <Project Path="Stat.Worker/Stat.Worker.csproj" />
+</Solution>

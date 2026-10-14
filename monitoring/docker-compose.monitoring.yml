@@ -1,0 +1,103 @@
+services:
+  # ============================================
+  # Loki - Log Aggregation System
+  # ============================================
+  loki:
+    image: grafana/loki:latest
+    container_name: artas_loki
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      # Каталог (не один файл) — избегаем кэширования bind-mount в Docker Desktop.
+      - ./loki:/etc/loki:ro
+      - loki_data:/loki
+    # Явно указываем конфиг: без этого Loki использует встроенные
+    # дефолты, где retention выключен и логи не удаляются.
+    command: -config.file=/etc/loki/config.yml
+    networks:
+      - artas_monitoring
+    healthcheck:
+      test: ["NONE"]
+
+  # ============================================
+  # Promtail - Log Collector Agent
+  # ============================================
+  promtail:
+    image: grafana/promtail:latest
+    container_name: artas_promtail
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    volumes:
+      # Монтируем КАТАЛОГ (не отдельный файл): при mount одного файла Docker
+      # Desktop кэширует его содержимое по inode и изменения config.yml не
+      # подхватываются до пересоздания контейнера. Каталог избегает этого.
+      - ./promtail:/etc/promtail:ro
+      # Единый каталог логов Artas2026 (LOGS_DIR в .env) монтируется read-only.
+      # Promtail читает /var/log/artas/*.log — writer.*.log и stat.*.log.
+      - ../logs:/var/log/artas:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - artas_monitoring
+    depends_on:
+      loki:
+        condition: service_started
+
+  # ============================================
+  # Prometheus - Time Series Database
+  # ============================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: artas_prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=8d
+      # Приём метрик PUSH-моделью от OTel Collector (prometheusremotewrite →
+      # POST /api/v1/write). Без этого флага эндпоинт записи недоступен.
+      - --web.enable-remote-write-receiver
+    networks:
+      - artas_monitoring
+
+  # ============================================
+  # OpenTelemetry Collector - Aggregation Gateway
+  # ============================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: artas_otel_collector
+    restart: unless-stopped
+    # file-exportёр пишет в volume otel_traces (root:root 755); запускаем от uid 0.
+    # Числовой формат обязателен: в distroless-образе нет записи root в passwd.
+    user: "0:0"
+    ports:
+      - "127.0.0.1:4317:4317"  # gRPC
+      - "127.0.0.1:4318:4318"  # HTTP
+    volumes:
+      - ./otel-collector/config.yml:/etc/otel-collector-config.yml
+      - otel_traces:/var/log/otel
+    command: --config /etc/otel-collector-config.yml
+    networks:
+      - artas_monitoring
+    depends_on:
+      loki:
+        condition: service_started
+      prometheus:
+        condition: service_started
+
+volumes:
+  loki_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  otel_traces:
+    driver: local
+
+networks:
+  artas_monitoring:
+    driver: bridge

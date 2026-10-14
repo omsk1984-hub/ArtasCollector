@@ -1,0 +1,26 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <ArtasStatRoot>$(MSBuildThisFileDirectory)</ArtasStatRoot>
+
+    <!--
+      NuGet Audit отключён: сборка/окружение работает в офлайн-режиме и не имеет
+      доступа к индексу уязвимостей nuget.org, из-за чего шло предупреждение
+      NU1900 на каждый проект. Audit вернуть можно, если появится сетевой доступ.
+    -->
+    <NuGetAudit>false</NuGetAudit>
+
+    <!--
+      NU1605 (package downgrade) подавляется осознанно на уровне всего решения:
+      часть транзитивных зависимостей Microsoft.Extensions.* просит версии,
+      которых нет в офлайн-кэше. Используем доступные 8.x (двоично совместимые).
+    -->
+    <NoWarn>$(NoWarn);NU1605</NoWarn>
+  </PropertyGroup>
+
+</Project>
