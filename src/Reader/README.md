@@ -7,7 +7,8 @@
 ## Слои решения
 
 ```
-ArtasChart.Core      — Models (POCO, без UI): Fractal, MyTick, InfoF, StatF, SymbolInfo, MarketPair
+ArtasCore            — Models (POCO, без UI): Fractal, MyTick, InfoF, StatF, SymbolInfo, MarketPair
+                       (общая библиотека src/Core/ArtasCore, отдельного ArtasChart.Core нет)
 ArtasChart.Data      — Доступ к PostgreSQL: FractalRepository + сегрегированные интерфейсы
                        (IFractalReader, IFractalCounter, IHealthProbe), DbConfig
 ArtasChart.Services  — Домен/презентация:
@@ -68,14 +69,14 @@ IFractalReader ──► MainWindowViewModel
 ## Запуск
 
 ```powershell
-# GUI
-./run.ps1
+# GUI (сборка Release + запуск в фоне)
+.\run_Reader.ps1
 
 # GUI с предустановленным символом
-./run.ps1 -Symbol CNYRUBF
+.\run_Reader.ps1 -Symbol CNYRUBF
 
 # Проверка данных без GUI
-dotnet run --project ArtasChart.App -- --check-db Si
+.\run_Reader.ps1 -CheckDb Si
 ```
 
 ## Несколько окон
@@ -84,7 +85,7 @@ dotnet run --project ArtasChart.App -- --check-db Si
 окно**. Ограничений по экземплярам нет; окна с разными символами сосуществуют
 одновременно.
 
-### Поведение `run.ps1`
+### Поведение `run_Reader.ps1`
 
 | Ситуация | Действие |
 |----------|----------|
@@ -94,8 +95,8 @@ dotnet run --project ArtasChart.App -- --check-db Si
 Пересборка пропускается, потому что запущенные экземпляры держат файлы из
 `bin\Release` (`ArtasChart.Services.dll` и др.) и сборка упала бы с `MSB3027`
 («файл занят другим процессом»). Чтобы пересобрать, закройте все окна ArtasChart
-и запустите `run.ps1` снова.
+и запустите `run_Reader.ps1` снова.
 
-`run.ps1` запускает собранный `ArtasChart.App.dll` напрямую (а не `dotnet run`),
+`run_Reader.ps1` запускает собранный `ArtasChart.App.dll` напрямую (а не `dotnet run`),
 поэтому процесс приложения не связан со сборочным конвейером. Наличие окон
 определяется по `ArtasChart.App.dll` в командной строке процесса.

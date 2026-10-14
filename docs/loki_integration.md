@@ -16,16 +16,16 @@ docker-compose ps
 **Вариант A: PowerShell (запускает сервисы в Windows)**
 
 ```powershell
-# Запуск Writer
-.\scripts\manage_fractal_writer.ps1 start CNYRUBF -HealthPort 8080
+# Запуск Writer (один процесс на все символы из appsettings)
+.\src\Writer\run_Writer.ps1
 
-# Запуск Stat (расчёт статистики)
-.\scripts\manage_stat_writer.ps1 CNYRUBF 3 20
+# Запуск Stat (расчёт статистики, batch-job)
+.\src\Stat\run_Stat.ps1 -Symbol CNYRUBF -StopPoint 3 -TakePoint 20
 ```
 
 Логи сервисов пишутся в единый каталог `LOGS_DIR` (по умолчанию `<корень>/logs`,
-например `D:\work\Artas2026\logs`): `writer.<port>.stdout.log`,
-`writer.<port>.stderr.log` и `stat.<symbol>.log`.
+например `D:\work\Artas2026\logs`): `writer.stdout.log`, `writer.stderr.log`
+и `stat.<symbol>.log`.
 Promtail собирает их и отправляет в Loki — отдельная настройка отправки не требуется.
 
 ### Шаг 3: Проверьте логи

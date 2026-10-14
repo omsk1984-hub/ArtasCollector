@@ -107,16 +107,22 @@ psql -U artas_user -d artas_db
 
 ## Данные по умолчанию
 
-После первого запуска будут созданы:
+Схема создаётся **EF Core миграциями** (не автоматически образом). После
+`docker compose up -d postgres` требуется применить миграции:
+
+```powershell
+.\db\apply-migrations.ps1
+```
 
 1. **Таблицы**:
-   - `symbols` - валютные пары
+   - `symbols` - финансовые инструменты
    - `fractals` - обнаруженные фракталы
    - `symbol_filter_settings` - настройки фильтра фракталов по символам
 
-2. **Начальные данные** (если не отключить):
-   - Символы: Si, CNY (контракт CRZ6), USDRUBF, CNYRUBF, IMOEXF (MOEX),
-     MX (MOEX max, контракт MXZ6), MM (MOEX mini, контракт MMZ6), RI (RTS, контракт RIZ6)
+2. **Начальные данные** (сиды миграции):
+   - Символы: `Si`, `MX` (MOEX max, MXZ6), `IMOEXF` (MOEX),
+     `CNY` (CRZ6), `USDRUBF`, `CNYRUBF`, `MM` (MOEX mini, MMZ6), `RI` (RTS, RIZ6)
+   - Эти же инструменты перечислены в `Writer:Symbols` ([`appsettings.json`](../src/Writer/ArtasWriter.Worker/appsettings.json)).
 
 ## Управление томами
 
@@ -142,10 +148,11 @@ docker-compose down -v
 
 Для использования базы данных в проекте:
 
-1. Пакет `Npgsql` уже подключён в проектах доступа к данным (см. [`ArtasCore`](src/Core/ArtasCore) `DbConfig`).
+1. Доступ к данным реализован через `Npgsql`/EF Core в общих проектах
+   ([`ArtasCore`](../src/Core/ArtasCore)), конфигурация — `DbConfig`.
 
-2. Настройте строку подключения в `appsettings.json` или через переменные окружения
-   (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`).
+2. Настройте строку подключения в `appsettings.json` (секция `Db`) или через переменные
+   окружения (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`).
 
 3. Используйте символ `CNYRUBF` для тестирования.
 

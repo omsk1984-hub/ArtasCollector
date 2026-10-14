@@ -1,8 +1,8 @@
 # Stat (.NET 10)
 
-Batch-сервис расчёта статистики фракталов. Полный перенос Python-сервиса
-`scripts/manage_stat_writer.ps1` → `C#/scripts/run_stat_writer.py` →
-`artas2026.services.stat_service.StatService` + `artas2026.core.stat_cursor.StatCursor`.
+Batch-сервис расчёта статистики фракталов. Перенесён с Python-сервиса
+(`StatService` + `StatCursor`) на C# (.NET 10); отдельного Python-проекта в
+репозитории нет.
 
 ## Назначение
 

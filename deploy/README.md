@@ -12,6 +12,7 @@
 - **Docker**: Docker Desktop с WSL2 backend или Docker CE в WSL
 - **RAM**: Минимум 4GB для Docker
 - **Диск**: Минимум 10GB для хранения логов
+- **Retention**: Loki хранит логи 48 часов (`retention_period: 48h`)
 
 ## Как определить, что Docker в WSL работает
 
@@ -189,8 +190,9 @@ PowerShell выполняется в Windows, но Docker запущен вну�
 
 ## Настройка логирования
 
-Сервисы Artas2026 (C#) пишут структурированные логи через `ILogger<T>` в файлы
-(например, `src/Writer/logs/writer.*.stdout.log`, `src/Stat/logs/`). Promtail собирает
+Сервисы Artas2026 (C#) пишут структурированные логи через `ILogger<T>` в единый
+каталог `LOGS_DIR` (по умолчанию `<корень>/logs`, например `D:\work\Artas2026\logs`):
+`writer.stdout.log`, `writer.stderr.log`, `stat.<symbol>.log`. Promtail собирает
 эти файлы и отправляет их в Loki.
 
 ### Конфигурация через .env
@@ -309,6 +311,7 @@ Artas2026/
 │   └── manage_monitoring.ps1      # PowerShell (не рекомендуется)
 ├── src/Writer/                    # C# Writer (источник логов)
 ├── src/Stat/                      # C# Stat (источник логов)
+├── logs/                          # Единый каталог логов (LOGS_DIR)
 ├── plans/                         # Планы (markdown)
 └── .env.example
 ```

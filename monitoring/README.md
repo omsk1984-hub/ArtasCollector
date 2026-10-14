@@ -102,8 +102,14 @@ docker compose -f docker-compose.monitoring.yml down -v
 
 | Компонент | Описание | Порт |
 |-----------|----------|------|
-| **Loki** | Log aggregation system | 3100 |
-| **Promtail** | Agent для сбора логов с файловой системы | 9080 |
+| **Loki** | Хранилище логов | 3100 |
+| **Promtail** | Агент сбора логов с файловой системы | 9080 |
+| **Prometheus** | TSDB метрик (remote-write от OTel, retention 8d) | 9090 |
+| **OTel Collector** | Приём OTLP-метрик/трейсов и remote-write в Prometheus | 4317 (gRPC) / 4318 (HTTP) |
+
+> **Grafana в стек не входит** — данные смотрятся через HTTP API Loki
+> (`http://localhost:3100`) и Prometheus (`http://localhost:9090`),
+> либо подключая собственный экземпляр Grafana к этим источникам.
 
 ## Политика хранения логов (retention)
 
@@ -231,7 +237,6 @@ monitoring/
 
 Каталог логов сервисов (`LOGS_DIR`, по умолчанию `<корень>/logs`) монтируется в
 контейнер Promtail как `/var/log/artas` (см. `docker-compose.monitoring.yml`).
-```
 
 ## Тестирование
 
@@ -278,6 +283,8 @@ sudo lsof -i :3100
 1. Уменьшите `chunk_retain_period` в Loki config
 2. Используйте `limit` в LogQL запросах
 
-## План развёртывания
+## Связанные документы
 
-Полный план см. в [`plans/loki-grafana-deployment-plan.md`](../../plans/loki-grafana-deployment-plan.md)
+- Развёртывание в WSL: [`deploy/README.md`](../deploy/README.md)
+- Интеграция Loki: [`docs/loki_integration.md`](../docs/loki_integration.md)
+- Отчёты по памяти: [`src/Tools/README.md`](../src/Tools/README.md)

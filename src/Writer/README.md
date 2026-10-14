@@ -1,7 +1,7 @@
 # ArtasWriter (.NET 10 + Finam API)
 
-Сервис записи фракталов в PostgreSQL в реальном времени. Аналог Python-проекта
-[`artas2026`](../../../src/artas2026), но без MetaTrader 5 и без истории тиков:
+Сервис записи фракталов в PostgreSQL в реальном времени. Python-предшественник
+(с MetaTrader 5 и историей тиков) в репозитории отсутствует:
 источник данных — **Finam Trade API** (gRPC): котировки, стакан, сделки, открытый интерес.
 
 > Требуется .NET 10 SDK. Целевой фреймворк задаётся центрально в `Directory.Build.props`.
@@ -157,6 +157,8 @@ curl http://localhost:8080/exit
 ## Тесты
 
 ```powershell
+dotnet test ArtasWriter.slnx
+# либо точечно:
 dotnet test ArtasWriter.Tests\ArtasWriter.Tests.csproj
 ```
 
@@ -179,5 +181,5 @@ dotnet test ArtasWriter.Tests\ArtasWriter.Tests.csproj
 
 ## Связанные документы
 
-- План миграции: [`plans/finam-writer-csharp-migration-plan.md`](../../../plans/finam-writer-csharp-migration-plan.md)
-- Базовая миграция: [`C#/src/Writer/fractals-migration-plan.md`](fractals-migration-plan.md)
+- План миграции: [`plans/finam-writer-csharp-migration-plan.md`](../../plans/finam-writer-csharp-migration-plan.md)
+- Управление сервисом: [`scripts/SERVICE_MANAGEMENT.md`](../../scripts/SERVICE_MANAGEMENT.md)

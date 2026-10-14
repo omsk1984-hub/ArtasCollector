@@ -3,14 +3,11 @@
 Этот документ описывает, как запускать и останавливать сервис записи фракталов
 [`ArtasWriter.Worker`](../src/Writer/ArtasWriter.Worker) (.NET 10) в Windows.
 
-## Скрипты управления
+## Скрипт запуска
 
-В папке `scripts` создан PowerShell-скрипт:
-
-- `manage_fractal_writer.ps1` — управление сервисом (требует PowerShell 5+).
-
-Дополнительно в репозитории есть лаунчер [`run_Writer.ps1`](../src/Writer/run_Writer.ps1),
-который собирает решение и запускает Writer (в фоне по умолчанию).
+Управление выполняется лаунчером [`run_Writer.ps1`](../src/Writer/run_Writer.ps1),
+который собирает решение и запускает Writer (в фоне по умолчанию). Живость
+проверяется через health-endpoint, остановка — graceful через `GET /exit`.
 
 ## Использование
 
@@ -21,49 +18,33 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ### Запуск сервиса
 ```powershell
-.\manage_fractal_writer.ps1 start CNYRUBF -HealthPort 8080
+.\src\Writer\run_Writer.ps1                 # сборка + запуск в фоне
+.\src\Writer\run_Writer.ps1 -Foreground     # в текущем терминале
+.\src\Writer\run_Writer.ps1 -NoBuild        # без пересборки (быстро)
+.\src\Writer\run_Writer.ps1 -Simulate       # режим симуляции (без Finam)
 ```
-Скрипт собирает решение (если не указан `-NoBuild`) и запускает `dotnet run` в фоне
-(`-WindowStyle Hidden`). Живость проверяется через health-endpoint.
 
 ### Остановка сервиса
 ```powershell
-.\manage_fractal_writer.ps1 stop CNYRUBF
+.\src\Writer\run_Writer.ps1 -Stop
 ```
 Выполняет graceful shutdown через `GET /exit`.
-
-### Перезапуск сервиса
-```powershell
-.\manage_fractal_writer.ps1 restart CNYRUBF
-```
-
-### Проверка статуса
-```powershell
-.\manage_fractal_writer.ps1 status
-.\manage_fractal_writer.ps1 all-status
-```
-
-### Массовые действия
-```powershell
-.\manage_fractal_writer.ps1 all-start
-.\manage_fractal_writer.ps1 all-stop
-.\manage_fractal_writer.ps1 all-restart
-```
 
 **Примечание:** Сервис запускается отдельным процессом, поэтому закрытие консоли PowerShell
 не останавливает Writer. Остановка — только через health-endpoint `/exit`.
 
-## Список сервисов по умолчанию
+## Сервис по умолчанию
 
-| Символ | Health-порт |
-|--------|-------------|
-| `CNYRUBF` | `8080` |
-| `USDRUBF` | `8081` |
-| `Si` | `8082` |
+Один процесс Writer обрабатывает **все** инструменты из `Writer:Symbols`
+([`appsettings.json`](../src/Writer/ArtasWriter.Worker/appsettings.json)).
+
+| Health-порт | Источник |
+|-------------|----------|
+| `8080` | `Writer:HealthPort` в `appsettings.json` |
 
 ## Ручное управление
 
-Если скрипт не работает, можно запустить Writer напрямую:
+Если лаунчер не подходит, можно запустить Writer напрямую:
 
 ### Запуск (форграунд)
 ```powershell
@@ -100,19 +81,20 @@ Stop-Process -Id <PID> -Force
    - Триггер: "При запуске"
    - Действие: "Запустить программу"
    - Программа: `powershell.exe`
-   - Аргументы: `-ExecutionPolicy Bypass -File "d:\work\Artas2026\scripts\manage_fractal_writer.ps1" start CNYRUBF -HealthPort 8080`
+   - Аргументы: `-ExecutionPolicy Bypass -File "d:\work\Artas2026\src\Writer\run_Writer.ps1"`
    - Настройки: "Запускать при входе в систему"
 
 или зарегистрируйте через реестр/скрипты репозитория (см. [`register_shutdown_task.ps1`](register_shutdown_task.ps1)).
 
 ## Мониторинг
 
-- Логи сервиса пишутся в `src/Writer/logs/` (`writer.<port>.stdout.log`, `writer.<port>.stderr.log`).
+- Логи сервиса пишутся в единый каталог `LOGS_DIR` (`<корень>/logs`, например
+  `D:\work\Artas2026\logs`): `writer.stdout.log`, `writer.stderr.log`.
 - Для просмотра логов в реальном времени:
   ```powershell
-  Get-Content src/Writer/logs/writer.8080.stdout.log -Wait
+  Get-Content D:\work\Artas2026\logs\writer.stdout.log -Wait
   ```
-- Структурированные логи могут отправляться в **Loki** (см. [`monitoring/README.md`](../monitoring/README.md)).
+- Логи собираются в **Loki** через Promtail (см. [`monitoring/README.md`](../monitoring/README.md)).
 
 ### Health endpoint
 
@@ -128,11 +110,8 @@ Stop-Process -Id <PID> -Force
   - `server_time` — текущее время сервера (UTC ISO 8601);
   - `symbols[]` — список инструментов, каждый с `last_tick` (`time_msc`, `time`, `last`, `bid`, `ask`, `volume`, `flags`, `interest`) и `fractals_count_today`.
 
-При управлении через `manage_fractal_writer.ps1` порт передаётся параметром `-HealthPort`:
-```powershell
-.\manage_fractal_writer.ps1 start CNYRUBF -HealthPort 8080
-```
-Команда `status` сама проверяет health endpoint и выводит результат.
+Порт задаётся в `appsettings.json` (`Writer:HealthPort`, по умолчанию `8080`); при
+необходимости переопределяется через переменную окружения `Writer__HealthPort`.
 
 ## Устранение неполадок
 

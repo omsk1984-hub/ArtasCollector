@@ -11,11 +11,11 @@ Docker (PostgreSQL и стек мониторинга) запускается в
 
 - **Обнаружение фракталов** по потоку тиков (Finam Trade API, gRPC).
 - **Запись фракталов в PostgreSQL** с разбиением (партиционированием) таблицы по символам.
-- **Health-сервер** для каждого сервиса: JSON-статус (`/health`) и graceful shutdown (`/exit`).
-- **Мультисимвольный запуск**: список инструментов задаётся в конфигурации `appsettings.json`.
+- **Health-сервер** для сервиса Writer: JSON-статус (`/health`) и graceful shutdown (`/exit`).
+- **Мультисимвольный запуск**: один процесс Writer обрабатывает все инструменты из `appsettings.json`.
 - **Расчёт статистики** фракталов (stop/take) отдельным batch-сервисом (`Stat`).
 - **Визуализация** фракталов (Avalonia + ScottPlot) с чтением данных из PostgreSQL.
-- **Сбор логов** через Promtail → Loki (см. [`monitoring/README.md`](monitoring/README.md)).
+- **Сбор логов и метрик** через Promtail → Loki, Prometheus + OpenTelemetry (см. [`monitoring/README.md`](monitoring/README.md)).
 - **Безопасное завершение** системы и автобэкапы PostgreSQL.
 
 ## Структура проекта
@@ -28,11 +28,13 @@ Artas2026/
 │
 ├── src/                               # Исходный код C# (.NET 10)
 │   ├── Core/                          # Общая библиотека
-│   │   └── ArtasCore/                 # Модели, JSON-конвертеры, абстракции доступа к БД
+│   │   └── ArtasCore/                 # Модели, JSON-конвертеры, EF Core DbContext, абстракции
 │   │       ├── Models/                # MyTick, Fractal, InfoF, InfoMeta, StatF, TickFlag, ...
 │   │       ├── Json/                  # FlexibleNumberConverters
-│   │       ├── Data/                  # DbConfig, FractalMetadataDto
-│   │       └── Abstractions/          # IFractalReader, IFractalRepository, IHealthProbe, IStatRepository
+│   │       ├── Data/                  # DbConfig, FractalMetadataDto, ArtasDbContext,
+│   │       │                          #   Entities/ и EF Core Migrations/
+│   │       └── Abstractions/          # IFractalReader, IFractalRepository, IHealthProbe,
+│   │                                  #   IStatRepository, ISingleInstanceGuard
 │   │
 │   ├── Writer/                        # Сервис записи фракталов (Finam API → PostgreSQL)
 │   │   ├── ArtasWriter.slnx
@@ -59,31 +61,38 @@ Artas2026/
 │   │   ├── ArtasChart.Data/           # Репозиторий чтения фракталов
 │   │   └── run_Reader.ps1             # Лаунчер Reader
 │   │
-│   └── Reflect/                       # Исследовательский probe ScottPlot API
+│   ├── Tools/                         # Диагностические утилиты (MemReport, ReportAnalyzer)
+│   │   └── ArtasTools.slnx
+│   │
+│   └── Go/                            # Мини-пример на Go (не часть системы)
 │
 ├── scripts/                           # Управляющие скрипты (PowerShell)
-│   ├── manage_fractal_writer.ps1      # start|stop|restart|status + all-* (C# Writer)
-│   ├── manage_stat_writer.ps1         # Запуск сервиса статистики (C# Stat)
 │   ├── auto_start_postgres.ps1        # Автозапуск PostgreSQL
 │   ├── auto_backup_pg.ps1             # Автобэкап PostgreSQL
 │   ├── graceful_pg_shutdown.ps1       # Graceful остановка PostgreSQL
 │   ├── fix_wal_corruption.ps1         # Диагностика/восстановление PG
 │   ├── monitor_pg_startup.ps1         # Мониторинг старта PostgreSQL
 │   ├── register_shutdown_task.ps1     # Регистрация задачи завершения
+│   ├── register_wsl_hold_task.ps1     # Регистрация WSL hold-задачи
+│   ├── install_wsl_graceful_shutdown.ps1 # Установка graceful shutdown WSL
 │   ├── cleanup_docker_wsl.ps1         # Очистка Docker в WSL
 │   ├── load_docker_images.ps1         # Загрузка образов Docker
 │   ├── save_docker_images.ps1         # Сохранение образов Docker
 │   ├── kill_by_ports.ps1              # Освобождение занятых портов
+│   ├── memory_leak_report.ps1         # Отчёт об утечке памяти (Prometheus)
 │   ├── safe_shutdown.ps1              # Безопасное завершение системы
 │   ├── stop_all_and_shutdown.ps1      # Остановка всего и завершение
 │   ├── wsl_safe_shutdown.ps1          # Безопасное завершение WSL
+│   ├── wsl_disk_usage.ps1             # Использование диска WSL
+│   ├── wsl_hold.ps1                   # Удержание WSL от завершения
 │   ├── manage_monitoring.ps1/.sh/.bat # Управление стеком мониторинга
 │   └── SERVICE_MANAGEMENT.md          # Документация управления сервисами
 │
 ├── db/                                # Конфигурация базы данных (Docker)
-│   ├── docker-compose.yml             # PostgreSQL + migrator (psql)
+│   ├── docker-compose.yml             # PostgreSQL (схема — EF Core миграциями)
 │   ├── Dockerfile                     # Образ PostgreSQL с кастомной конфигурацией
-│   ├── init-scripts/                  # SQL-скрипты инициализации и миграций
+│   ├── apply-migrations.ps1           # Применение EF Core миграций
+│   ├── init-scripts/                  # Конфиг и сервисные скрипты PG (WSL)
 │   ├── update.ps1                     # Скрипт обновления БД
 │   ├── scripts.sql                    # SQL-утилиты
 │   ├── database_schema.md             # Схема БД
@@ -93,15 +102,21 @@ Artas2026/
 │   ├── docker-compose.monitoring.yml
 │   ├── loki/config.yml
 │   ├── promtail/config.yml
+│   ├── prometheus/prometheus.yml
+│   ├── otel-collector/config.yml
 │   └── README.md
 │
 ├── deploy/                            # Развёртывание стека мониторинга в WSL
 │   └── README.md
 │
 ├── docs/                              # Документация
+│   ├── running-project.md             # Пошаговый запуск проекта
+│   ├── adding-symbols.md              # Добавление новых символов
+│   ├── data_flow_from_start_to_pg.md  # Путь данных: от старта до PostgreSQL
 │   ├── loki_integration.md
 │   ├── model.md
 │   ├── postgres_connection_issue.md
+│   ├── powershell-nested-cyrillic-encoding.md
 │   └── wsl-restart-on-last-user-logoff.md
 │
 ├── plans/                             # Планы и задачи (markdown)
@@ -129,8 +144,8 @@ dotnet build src/Reader/ArtasChart.sln
 
 ### 3. Настройка переменных окружения
 Скопируйте файл `.env.example` в `.env` и настройте параметры:
-```bash
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
 # Отредактируйте .env под вашу конфигурацию
 ```
 
@@ -157,8 +172,10 @@ wsl bash -c "cd /mnt/d/work/Artas2026/db && docker compose up -d"
 `docker-compose.yml` поднимает сервис:
 - **postgres** — PostgreSQL (порт пробрасывается только на `127.0.0.1:5432`), с healthcheck.
 
-Схема БД управляется EF Core миграциями (см. [`db/README.md`](db/README.md)),
-применение — отдельным шагом через `db/apply-migrations.ps1`.
+Схема БД управляется EF Core миграциями (проект [`ArtasCore`](src/Core/ArtasCore)),
+применение — отдельным шагом через [`db/apply-migrations.ps1`](db/apply-migrations.ps1).
+Контейнера-мигратора в compose нет: применяются миграции явной командой
+(см. [`db/README.md`](db/README.md)).
 
 ### 5. Запуск стека мониторинга (опционально)
 
@@ -181,40 +198,40 @@ wsl bash -c "cd /mnt/d/work/Artas2026 && ./scripts/manage_monitoring.sh start"
 
 ### Сервис записи фракталов (Writer)
 
-Один процесс Writer обрабатывает инструменты из конфигурации. Health-порт задаётся
-в `appsettings.json` (`Writer.HealthPort`, по умолчанию `8080`).
+Один процесс Writer обрабатывает **все** инструменты из `Writer:Symbols`
+([`appsettings.json`](src/Writer/ArtasWriter.Worker/appsettings.json)). Health-порт —
+`Writer:HealthPort` (по умолчанию `8080`); второй экземпляр на тот же порт запустить
+нельзя (порт — защита от двойного запуска).
 
 Запуск через лаунчер (по умолчанию — в фоне):
 ```powershell
 .\src\Writer\run_Writer.ps1                 # build Release + run (фон)
 .\src\Writer\run_Writer.ps1 -Foreground     # запуск в текущем терминале
 .\src\Writer\run_Writer.ps1 -Simulate       # режим симуляции (без Finam)
+.\src\Writer\run_Writer.ps1 -NoBuild        # запуск без пересборки
 .\src\Writer\run_Writer.ps1 -Stop           # graceful shutdown (через /exit)
 ```
 
-Запуск/остановка/статус через PowerShell (использует health-endpoint, PID-файлы не используются):
+Инструменты по умолчанию (один процесс, health-порт `8080`):
+
+| Символ | Источник |
+|--------|----------|
+| `Si`, `MX`, `IMOEXF`, `CNY`, `USDRUBF`, `CNYRUBF`, `MM`, `RI` | `Writer:Symbols` в `appsettings.json` |
+
+Проверка и остановка через health-эндпоинт:
 ```powershell
-.\scripts\manage_fractal_writer.ps1 start CNYRUBF -HealthPort 8080
-.\scripts\manage_fractal_writer.ps1 status
-.\scripts\manage_fractal_writer.ps1 stop USDRUBF
-.\scripts\manage_fractal_writer.ps1 all-start   # все сервисы по умолчанию
+Invoke-RestMethod http://localhost:8080/health
+Invoke-RestMethod http://localhost:8080/exit
 ```
-
-Сервисы по умолчанию и их health-порты:
-
-| Символ | Health-порт |
-|--------|-------------|
-| `CNYRUBF` | `8080` |
-| `USDRUBF` | `8081` |
-| `Si` | `8082` |
 
 ### Сервис расчёта статистики (Stat, stop/take)
+
+Batch-job: полный прогон и завершение (exit code 0 — успех, 1 — ошибка):
 ```powershell
-.\scripts\manage_stat_writer.ps1 CNYRUBF 3 20
-```
-или напрямую:
-```powershell
-.\src\Stat\run_Stat.ps1
+.\src\Stat\run_Stat.ps1                                  # по умолчанию Symbol=Si
+.\src\Stat\run_Stat.ps1 -Symbol CNYRUBF -StopPoint 3 -TakePoint 20
+.\src\Stat\run_Stat.ps1 -Clear                           # очистить stat перед прогоном
+.\src\Stat\run_Stat.ps1 -NoBuild                         # без пересборки
 ```
 
 ### Визуализация (Reader, Avalonia + ScottPlot)
@@ -292,21 +309,24 @@ Batch-сервис расчёта статистики фракталов (stop/
 - **`ArtasChart.Services`** — фильтрация, локальные экстремумы, подготовка серий, форматирование.
 - **`ArtasChart.App`** — Avalonia UI (View/ViewModel), графики ScottPlot.
 
-### 5. Reflect (`src/Reflect`)
-Исследовательский probe ScottPlot API (не участвует в продакшене).
-
 ## Хранение данных (PostgreSQL)
 
 - Таблица `fractals` **партиционирована по символу**.
 - Композитный первичный ключ, мягкое удаление (`delated`), поле статистики (JSONB `stat`).
 - Символы хранятся отдельно с человекочитаемым именем (`name`) и параметрами `point`/`digits`.
-- Миграции выполняются автоматически контейнером `migrator` (скрипты в [`db/init-scripts/`](db/init-scripts)).
+- Схема БД управляется **EF Core миграциями** (проект [`ArtasCore`](src/Core/ArtasCore));
+  применение — отдельной командой [`db/apply-migrations.ps1`](db/apply-migrations.ps1)
+  (`dotnet ef database update`). Контейнера-мигратора в compose нет.
 - Схема БД описана в [`db/database_schema.md`](db/database_schema.md).
 
 ## Мониторинг и логирование
 
-- Логи сервисов пишутся в `logs/` (`src/Writer/logs`, `src/Stat/logs`) и могут отправляться в **Grafana Loki**.
-- **Promtail** собирает логи сервисов, **Loki** хранит; просмотр — через Loki API (http://localhost:3100).
+- Логи сервисов пишутся в единый каталог `LOGS_DIR` (`<корень>/logs`, например
+  `D:\work\Artas2026\logs`): `writer.stdout.log`, `writer.stderr.log`, `stat.<symbol>.log`.
+- **Promtail** собирает логи и отправляет их в **Grafana Loki**; просмотр — через Loki API (http://localhost:3100).
+- **Метрики** .NET-рантайма Writer отправляются по OTLP в **OTel Collector** →
+  **Prometheus** (http://localhost:9090); отчёты по памяти — утилитами
+  [`src/Tools`](src/Tools/README.md).
 - Управление стеком: [`scripts/manage_monitoring.sh`](scripts/manage_monitoring.sh) (WSL) / [`scripts/manage_monitoring.ps1`](scripts/manage_monitoring.ps1) (Windows).
 - Документация: [`monitoring/README.md`](monitoring/README.md), [`deploy/README.md`](deploy/README.md), [`docs/loki_integration.md`](docs/loki_integration.md).
 
